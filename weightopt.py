@@ -244,7 +244,7 @@ while notopt:
                 if weights[b]==0:
                     del wtdn[0]
     counter+=1
-    iterchange = 100*(itercost-newcost)/newcost
+    iterchange = 100*(itercost-newcost)/itercost
     print("Change over this iteration: " + str(iterchange)[:4]+"%")
     iterchangearray.append(iterchange)
     if iterchange <0.1:

@@ -67,12 +67,6 @@ if DO_LEAF_POSITION_SOLVE:
 
     t = (time.time() - tempTime)
     print("*******LEAF SOLVE COMPLETED***********  T: "+ str(t)[0:4] +" s")
-    
-    if DO_LEAF_EXPORT:    
-        for w,mySolve in enumerate(solverAvgArray[0]):
-            filenameLeafOut = str(w)+"_"+str(nLvls)+"lvls[FINAL].leaves"       # File to export leaf positions
-            mySolve.weight = solverAvgArray[1][w]
-            tr.outputLeaves(filenameLeafOut, mySolve,fileDelim)
 
 #now write the data back to the dicom file
 tr.convertToComp(mlcplan, solverAvgArray, "HNPreWeightCompPlan.dcm")
