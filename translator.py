@@ -131,7 +131,7 @@ def convertToComp(plan, solverarray, fname):
 
 def convertCPtoFluence(leaves, cpmu, xstep,xmin, xmax, ymin, ymax, dlg):
     #first figure out the size of the array we'll need
-    nx = np.int16(np.round(abs(np.round((xmax+1-xmin)/(xstep)))))
+    nx = np.int16(np.round(abs(np.round((xmax+1-xmin)/(xstep)))))+1
     ny = np.int16(np.round(abs(np.round((ymax+1-ymin)/5))))#we are only worried about the smaller inner leaves for now
     thisfluence=np.zeros((ny, nx),dtype=np.float64)
     firstyindex = np.int16(10+np.round((100+ymin)/5))-1#first 10 leaves are 10mm leaves.  we are pretending they dont exist except when we cant

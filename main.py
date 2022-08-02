@@ -88,7 +88,7 @@ if plantype == "ra":
         #ypos=raplan.BeamSequence[0].BeamLimitingDeviceSequence[2].LeafPositionBoundaries #positions of the leaves in the Y direction, or just hard code it in.
         #hard codingg it in.  dont have fields bigger than 15cm (x) x 20cm(y) for now.  y goes between MLC indices 10 and 50 for half cm leaves.
         mus=[]
-        nx = np.int16(np.round(abs(np.round((xMax+1-xMin)/xStep))))#we need xstep in mm not cm here
+        nx = np.int16(np.round(abs(np.round((xMax+1-xMin)/xStep))))+1#we need xstep in mm not cm here
         ny = np.int16(np.round(abs(np.round((yMax+1-yMin)/5))))
         
         for b in range(len(raplan.FractionGroupSequence[0].ReferencedBeamSequence)):
