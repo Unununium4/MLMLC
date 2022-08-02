@@ -20,7 +20,7 @@ globalTime = time.time()
 
 # =====================PARAMETERS=====================
 nLvls = 6                           # Number of layers to use
-xStep = 0.25                        # x discretization.  use 2.5 when doing IMRT mode
+xStep = 0.25                        # x discretization.  use 0.25cm when doing IMRT mode cuz that's what the fluence is pieced up as
 searchStep = 1E-2                   # Step size for search values
 weightSearchStep = 1E-2                # Threshold of weight convergence
 maxWeight = 3                       # Maximum allowed weight
@@ -30,7 +30,7 @@ DO_LEAF_POSITION_SOLVE = True       # True=Run solver.py methods to optimize lea
 DO_LEAF_EXPORT = False              # Use export functions from translator.py
                                     # to export leaf and weight info
 
-plantype = "imrt"
+plantype = "ra"
 #code for converting an 
 if plantype == "imrt":
     mlcplan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\9fldhnkideal\idealplan.dcm")
@@ -72,7 +72,7 @@ if plantype == "imrt":
 if plantype == "ra":
     dlg = 0.1103 #the killeen 6x DLG is 0.1103. 
     dlg=dlg/2 #per leaf
-    raplan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\6RA.dcm")
+    raplan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\2RA.dcm")
     if DO_LEAF_POSITION_SOLVE:
         tempTime = time.time()
         idealFluencesArray = []
@@ -88,7 +88,7 @@ if plantype == "ra":
         #ypos=raplan.BeamSequence[0].BeamLimitingDeviceSequence[2].LeafPositionBoundaries #positions of the leaves in the Y direction, or just hard code it in.
         #hard codingg it in.  dont have fields bigger than 15cm (x) x 20cm(y) for now.  y goes between MLC indices 10 and 50 for half cm leaves.
         mus=[]
-        nx = np.int16(np.round(abs(np.round((xMax+1-xMin)/xStep))))
+        nx = np.int16(np.round(abs(np.round((xMax+1-xMin)/xStep))))#we need xstep in mm not cm here
         ny = np.int16(np.round(abs(np.round((yMax+1-yMin)/5))))
         
         for b in range(len(raplan.FractionGroupSequence[0].ReferencedBeamSequence)):
@@ -96,29 +96,22 @@ if plantype == "ra":
         for cp, controlpoint in enumerate(raplan.BeamSequence[0].ControlPointSequence):
             if cp == 0:
                 continue#skip first cp - it just has jaw positions in it at least with no jaw tracking
-            farray=np.zeroes(nx, ny)
+            print("CP: " + str(cp) + " of " + str(len(raplan.BeamSequence[0].ControlPointSequence)))
+            farray=np.zeros((ny, nx),dtype=np.float64)
             for f,beam in enumerate(raplan.BeamSequence):
-                print("Field: " + str(f+1) + " of " + str(len(raplan.BeamSequence)) + "  CP: " + str(cp+1) + " of " + str(len(raplan.BeamSequence[0].ControlPointSequence)))
-                leaves = raplan.BeamSequence[f].ControlPointSequence[cp].BeamLimitingDevicePositionSequence[0].LeafJawPositions[0]
+
+                leaves = raplan.BeamSequence[f].ControlPointSequence[cp].BeamLimitingDevicePositionSequence[0].LeafJawPositions
                 #weight will be the mu/cp
-                cpmu = mus[f]*(raplan.BeamSequence[0].ControlPointSequence[cp].CumulativeMetersetWeight-raplan.BeamSequence[0].ControlPointSequence[cp-1].CumulativeMetersetWeight)
-                farray += tr.convertCPtoFluence(leaves,cpmu,xStep,xMin, xMax, yMin, yMax, dlg)
-
-            params = (nLvls, xMin, xMax, xStep,searchStep, maxWeight, weightSearchStep)
-
-            optimalFluence = farray
+                cpmu = np.float64(mus[f]*(raplan.BeamSequence[0].ControlPointSequence[cp].CumulativeMetersetWeight-raplan.BeamSequence[0].ControlPointSequence[cp-1].CumulativeMetersetWeight))
+                farray = np.add(farray,tr.convertCPtoFluence(leaves,cpmu,xStep,xMin, xMax, yMin, yMax, dlg))
             
-            # Simplify the field data by a factor of 4
-            # Results in 1cm leaves right now if the fluences from eclipse come over as 0.25cm
-            #normFluence = tr.normalizedKernel(optimalFluence,4)
-            #use factor of 2 for 0.5cm leaves
-            normFluence = tr.normalizedKernel(optimalFluence,2)
-            nRows = len(normFluence)
+            params = (nLvls, xMin, xMax, xStep,searchStep, maxWeight, weightSearchStep)
+            
+            normFluence = tr.normalizedKernel(farray,1)
             
             # Instantiate a solver object
             mySolver3 = leafSolver(params)
-            solve3, ideal, x, time3 = mySolver3.solveExtend2PeakWeightLimit(normFluence)
-            idealFluencesArray.append(ideal)       
+            solve3, ideal, x, time3 = mySolver3.solveExtend2PeakWeightLimit(normFluence)     
             solverAvgArray.append(mySolver3)
 
         t = (time.time() - tempTime)

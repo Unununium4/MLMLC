@@ -129,19 +129,19 @@ def convertToComp(plan, solverarray, fname):
         plan.BeamSequence[b][0x300a, 0x0110].value = 2
     plan.save_as(fname)
 
-def convertCPtoFluence(controlpoint, cpmu, xstep,xmin, xmax, ymin, ymax, dlg):
+def convertCPtoFluence(leaves, cpmu, xstep,xmin, xmax, ymin, ymax, dlg):
     #first figure out the size of the array we'll need
-    nx = np.int16(np.round(abs(np.round((xmax+1-xmin)/xstep))))
-    ny = np.int16(np.round(abs(np.round((ymax+1-ymin)/5))))
-    array=np.zeros(nx, ny)
-    firstyindex = 10+np.round((100+ymin)/5)#first 10 leaves are 10mm leaves.  we are pretending they dont exist except when we cant
-    lasttyindex = 10+np.round(ymax/5)
-    for y,leaf in enumerate(range(firstyindex,lasttyindex)):#120 leaves
+    nx = np.int16(np.round(abs(np.round((xmax+1-xmin)/(xstep)))))
+    ny = np.int16(np.round(abs(np.round((ymax+1-ymin)/5))))#we are only worried about the smaller inner leaves for now
+    thisfluence=np.zeros((ny, nx),dtype=np.float64)
+    firstyindex = np.int16(10+np.round((100+ymin)/5))-1#first 10 leaves are 10mm leaves.  we are pretending they dont exist except when we cant
+    lastyindex = np.int16(30+np.round(ymax/5))-1
+    for y,leaf in enumerate(range(firstyindex,lastyindex)):#120 leaves
         for x in range (nx) :
             xpos=xmin+x*xstep 
-            if xpos > controlpoint[leaf] - dlg and xpos < controlpoint[leaf+60] + dlg:
-                array[x,y]=cpmu
-    return(array)
+            if xpos > leaves[leaf] - dlg and xpos < leaves[leaf+60] + dlg:
+                thisfluence[-y,x]=cpmu
+    return(thisfluence)
 
 def importDicomFluence(beam):
     # Parses the fluence from the rt dicom file 
