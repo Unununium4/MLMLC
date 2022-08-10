@@ -18,6 +18,72 @@ from os.path import isfile, join
 # It includes some methods that can reshape or simplify the data
 # It also exports details of solver object (leaf positions and weight)
 
+def convertRAMLMLCToComp(solverarray,isox, isoy, isoz, xmin, xmax, ymin, ymax, gantries, fname):
+    plan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\template\templateplan.dcm")#this plan has a full arc's worth of fields in it
+    #change UIDs so we can reimport it
+    plan.RTPlanLabel+="BadComp"
+    plan[0x20,0xe].value = str(random.randint(0,100000000000000000000000000))#series instance id 
+    plan.StudyInstanceUID = str(random.randint(0,100000000000000000000000000))
+    plan.SOPInstanceUID = str(random.randint(0,100000000000000000000000000))
+    
+    mlmlcfluences=mp.getSolverArrayFluences(solverarray)
+
+    xstep = solverarray[0].xStep   
+    ystep=5                   #in mm, ...JUST HALF CM LEAVES FOR NOW!!! 
+    pad = 10  #10mm pad to the compensator
+    rpad = np.int16(np.ceil(pad/xstep))
+    cpad = np.int16(np.ceil(pad/ystep))
+    nrows = solverarray[0].nRows +2*cpad#add to top and bottom
+    ncols = len(mlmlcfluences[0][0]) +2*rpad#add to both sides
+    xmin -= rpad*xstep
+    xmax += cpad*ystep
+
+        #if you dont pad
+    # nrows = solverarray[0].nRows
+    # ncols = len(mlmlcfluences[0][0])
+    # xstep = solverarray[0].xStep   
+    # ystep=5                   #in mm, ...JUST HALF CM LEAVES FOR NOW!!! 
+
+    numcomps = len(gantries)
+    plan.FractionGroupSequence[0].NumberOfBeams = numcomps
+    numtemplatefields = len(plan.BeamSequence)
+
+
+    del plan.BeamSequence[numcomps:numtemplatefields]
+    del plan.FractionGroupSequence[0].ReferencedBeamSequence[numcomps:numtemplatefields]
+
+    for b in range(numcomps):
+        print("field "+str(b+1) + " of " + str(numcomps))
+        plan.BeamSequence[b].ControlPointSequence[0].BeamLimitingDevicePositionSequence[0].LeafJawPositions[0]=xmin
+        plan.BeamSequence[b].ControlPointSequence[0].BeamLimitingDevicePositionSequence[0].LeafJawPositions[1]=xmax
+        plan.BeamSequence[b].ControlPointSequence[0].BeamLimitingDevicePositionSequence[1].LeafJawPositions[0]=ymin
+        plan.BeamSequence[b].ControlPointSequence[0].BeamLimitingDevicePositionSequence[1].LeafJawPositions[1]=ymax
+        plan.BeamSequence[b].ControlPointSequence[0].IsocenterPosition[0]=isox
+        plan.BeamSequence[b].ControlPointSequence[0].IsocenterPosition[1]=isoy
+        plan.BeamSequence[b].ControlPointSequence[0].IsocenterPosition[2]=isoz
+        plan.BeamSequence[b].ControlPointSequence[0].GantryAngle=gantries[b]
+
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorRows = nrows
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorColumns = ncols
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorPosition = [xmin, ymax]
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorPixelSpacing = [ystep, xstep]
+        padf=np.pad(mlmlcfluences[b],((cpad,cpad),(rpad,rpad)),'constant',constant_values=0.02)#gotta pad out to have the compensator go beyond the jaws
+        fluence = padf.flatten()
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorTransmissionData.clear()
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorThicknessData.clear()
+        # for f in range(len(fluence)):
+        #     plan.BeamSequence[b].CompensatorSequence[0].CompensatorTransmissionData.append(fluence[f])
+        #     plan.BeamSequence[b].CompensatorSequence[0].CompensatorThicknessData.append(abs(-10*np.log(fluence[f])/0.5538))
+        thickness = abs(-10*np.log(fluence)/0.5538)
+        thickness = pydicom.multival.MultiValue(pydicom.valuerep.DSfloat,thickness)
+        fluence=pydicom.multival.MultiValue(pydicom.valuerep.DSfloat,fluence)
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorTransmissionData=fluence
+        plan.BeamSequence[b].CompensatorSequence[0].CompensatorThicknessData=thickness
+        
+
+    plan.save_as(fname)
+
+
 def rewriteWeights(origfile, origfolder, newweights, fname):
 
     #first let's get the bounds of the RD array that we want to optimize with.  No need to optimize everywhere
