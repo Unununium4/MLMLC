@@ -11,8 +11,8 @@ import pydicom
 
 # This is the main file, excute this python script
 # =====================PARAMETERS=====================
-nLvls = 2                           # Number of layers to use
-xStep = 1                       # x discretization in mm.  use 2.5mm when doing IMRT mode cuz that's what the fluence is pieced up as
+nLvls = 6                           # Number of layers to use
+xStep = 1                       # x discretization in mm.  use 2.5mm when doing IMRT mode cuz that's what the fluence is pieced up as.  
 searchStep = 1E-1                   # Step size for search values
 weightSearchStep = 1E-1                # Threshold of weight convergence
 maxWeight = 3                       # Maximum allowed weight
@@ -22,7 +22,7 @@ finalfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data"
 if plantype == "ra":
     dlg = 0.1103 #the killeen 6x DLG is 0.1103. 
     dlg=dlg/2 #per leaf
-    raplan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\fortesting\idealplan.dcm")
+    raplan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\6RA.dcm")
     tempTime = time.time()
     idealFluencesArray = []
     solverAvgArray = []
@@ -69,7 +69,7 @@ if plantype == "ra":
     print("*******LEAF SOLVE COMPLETED***********  T: "+ str(t)[0:4] +" s")
     print("writing file...")
     #now write the data back to the dicom file
-    tr.convertRAMLMLCToComp(solverAvgArray,isoX, isoY, isoZ, xMin ,xMax, yMin, yMax, gantries, finalfolder + r"HNPreWeightCompPlan.dcm")
+    tr.convertRAMLMLCToComp(solverAvgArray,isoX, isoY, isoZ, xMin ,xMax, yMin, yMax, gantries, finalfolder + r"\HNPreWeightCompPlan.dcm")
     print("done")
 
 if plantype == "imrt":
