@@ -75,9 +75,7 @@ def convertRAMLMLCToComp(solverarray,isox, isoy, isoz, xmin, xmax, ymin, ymax, g
 
 
 def rewriteWeights(origfile, origfolder, newweights, fname):
-
     #first let's get the bounds of the RD array that we want to optimize with.  No need to optimize everywhere
-
     #get the mlmlc field doses
     count=0
     for f in listdir(origfolder):
@@ -100,24 +98,30 @@ def rewriteWeights(origfile, origfolder, newweights, fname):
                 for b in range(len(rp.FractionGroupSequence[0].ReferencedBeamSequence)):
                     rp.FractionGroupSequence[0].ReferencedBeamSequence[b].BeamMeterset *= newweights[b]
                 rp.save_as(fname+"plan.dcm")
-    
+    newf = fname + "dose.dcm"
     dosefile = pydicom.dcmread(origfile)
     scaling = dosefile.DoseGridScaling
-    newarray = dosefile.pixel_array
-    rows = len(newarray)
-    columns = len(newarray[0])
-    slices = len(newarray[0,0])
 
 
-    for i in range(rows):
-        for j in range(columns):
-            for k in range (slices):
-                newarray[i,j,k] =  np.uint32(dosetowrite[i,j,k] / scaling)
+    dosetowrite =  np.uint32(dosetowrite/ scaling)
+    dosefile.Rows=len(dosetowrite[0])
+    dosefile.Columns=len(dosetowrite[0][0])
+    dosefile.PixelData = dosetowrite.tobytes()
+
+    # newarray = dosefile.pixel_array
+    # rows = len(newarray)
+    # columns = len(newarray[0])
+    # slices = len(newarray[0,0])
+
+    # for i in range(rows):
+    #     for j in range(columns):
+    #         for k in range (slices):
+    #             newarray[i,j,k] =  np.uint32(dosetowrite[i,j,k] / scaling)
                 
-    newf = fname + "dose.dcm"
     
-    print(np.max(newarray))
-    dosefile.PixelData = newarray.tobytes()
+    # print(np.max(newarray))
+    # dosefile.PixelData = newarray.tobytes()
+
     dosefile.SeriesInstanceID = str(random.randint(0,1000000000000000000000000000000))
     dosefile[0x20,0xe].value = str(random.randint(0,1000000000000000000000000000000))
     dosefile.ReferencedRTPlanSequence[0].ReferencedSOPInstanceUID = str(random.randint(0,1000000000000000000000000000000))

@@ -45,8 +45,8 @@ def IsPointInPolygon(contourxs,contourys, pointx, pointy):
 
 tempTime = time.time()
 
-exportloc = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\9fldhnkpreweight"
-origfile = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\9fldhnkideal\idealdose.dcm"
+exportloc = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\H6M6P8_11_22"
+origfile = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\6RADose.dcm"
 finalfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data"
 ptvnames=["PTV_total"]#as for the ptvs, we will try to keep the doses the same between the optimized plan and the ideal.  everywhere else we will minimize.
 oarnames=["Parotid_L_P", "Parotid_R_P", "Larynx_P", "Mandible_P","SpinalCanal_P"]
@@ -218,13 +218,10 @@ while notopt:
         othersumoar = sumall(otherbeamsoar, otherweights) 
         while len(wtdn)>0:
             oldcost= newcost
-            #weights[b]+=wtdn[0]
             
             if weights[b]+wtdn[0] <= 0:
                 oldw=weights[b]
                 weights[b]=0
-                # if len(wtdn)==1:
-                #     del wtdn[0]
             else: weights[b]+=wtdn[0]
 
             allsumptv= preptvcloud[b]*weights[b] + othersumptv
@@ -253,7 +250,7 @@ while notopt:
     if counter==100:
         notopt=False#stop after n iterations    
         print("optimization completed due to meeting the iterations limit")    
-tr.rewriteWeights(origfile, exportloc,weights, finalfolder + r"\HNMLCfinal")
+tr.rewriteWeights(origfile, exportloc,weights, finalfolder + r"\H6M6W8_11_22.dcm")
 t = (time.time() - tempTime)
 np.savetxt(finalfolder+r"\HNMLCcostf.csv",iterchangearray,delimiter =',')
 print("Weight optimization completed in " + str(t)[:6]+" seconds")
