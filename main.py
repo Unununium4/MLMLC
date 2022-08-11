@@ -11,7 +11,7 @@ import pydicom
 
 # This is the main file, excute this python script
 # =====================PARAMETERS=====================
-nLvls = 6                           # Number of layers to use
+nLvls = 5                           # Number of layers to use
 xStep = 1                       # x discretization in mm.  use 2.5mm when doing IMRT mode cuz that's what the fluence is pieced up as.  
 searchStep = 1E-1                   # Step size for search values
 weightSearchStep = 1E-1                # Threshold of weight convergence
@@ -22,7 +22,7 @@ finalfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data"
 if plantype == "ra":
     dlg = 0.1103 #the killeen 6x DLG is 0.1103. 
     dlg=dlg/2 #per leaf
-    raplan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\6RA.dcm")
+    raplan = pydicom.dcmread(r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\5RA.dcm")
     tempTime = time.time()
     idealFluencesArray = []
     solverAvgArray = []
@@ -60,7 +60,6 @@ if plantype == "ra":
         
         params = (nLvls, xMin, xMax, xStep,searchStep, maxWeight, weightSearchStep)
         normFluence = tr.normalizedKernel(farray,1)
-        
         # Instantiate a solver object
         mySolver3 = leafSolver(params)
         solve3, ideal, x, time3 = mySolver3.solveExtend2PeakWeightLimit(normFluence)     

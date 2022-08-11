@@ -582,7 +582,7 @@ def NUMBA2PeakWeightLimit(weight,x,nLvls,step,leafTrans,inFluence):
             if fitL[i] < 0:
                 continue
             targ = (leafTrans[int(fitL[i])]*prodFit + prodFit) / 2
-            while yTemp >= targ:
+            while yTemp >= targ and xTemp >= x[0]:
                 xTemp -= step
                 yTemp = np.interp(xTemp,x,inFluence[r])
             leafLeftPos[r][int(fitL[i])] = xTemp
@@ -595,7 +595,7 @@ def NUMBA2PeakWeightLimit(weight,x,nLvls,step,leafTrans,inFluence):
             if fitR[i] < 0:
                 continue
             targ = (leafTrans[int(fitR[i])]*prodFit + prodFit) / 2
-            while yTemp >= targ:
+            while yTemp >= targ and xTemp <=x[-1]:
                 xTemp += step
                 yTemp = np.interp(xTemp,x,inFluence[r])
             leafRightPos[r][int(fitR[i])]= xTemp
