@@ -13,6 +13,27 @@ from copy import deepcopy
 import translator as tr
 import time
 
+#calculate time
+def timetodeliver(dcmplan,weights, leavesfolder, drate):#drate is in MU/min.  need to include leave position file to get the leaf speeds
+    ttd=0#time to deliver
+    #assume 600MU/minute.  this is in MU/second - make this an input to allow for FFF rates
+    drate = drate/60#convert to MU/sec
+    mutimes=[]
+    for b in range(len(dcmplan.FractionGroupSequence[0].ReferencedBeamSequence)):
+        mutimes.append(dcmplan.FractionGroupSequence[0].ReferencedBeamSequence[b].BeamMeterset * weights[b]/drate)
+    gspeed = 6#assume 6 degrees per second gantry rotation (360degree/minute)
+    gtimes=[2/gspeed]
+    for b in range(1,len(dcmplan.BeamSequence)):
+        g1=dcmplan.BeamSequence[b-1].ControlPointSequence[0].GantryAngle
+        g2=dcmplan.BeamSequence[b].ControlPointSequence[0].GantryAngle
+        gtimes.append(abs(g2-g1)/gspeed)
+    lspeed = 25#assume leaf speed of 25mm per second projected at isocenter
+
+    print(len(gtimes))
+    print(len(mutimes))
+
+    return ttd
+
 #cost function
 def cost(goalptv,goaloar, optptv,optoar): #playing with the cost function.  i think we'll need to just send it points, not the entire 3D sets to speed things up
     maxd = np.max(goalptv)
@@ -50,6 +71,10 @@ origfile = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\5RADose.
 finalfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data"
 ptvnames=["PTV_total"]#as for the ptvs, we will try to keep the doses the same between the optimized plan and the ideal.  everywhere else we will minimize.
 oarnames=["Parotid_L_P", "Parotid_R_P", "Larynx_P", "Mandible_P","SpinalCanal_P"]
+normptv="PTV_6996"
+normvol = 95
+normrx = 100
+rx=69.96
 origrd= pydicom.dcmread(origfile)
 
 for f in listdir(exportloc):
@@ -62,6 +87,7 @@ pixelspacing=origrd.PixelSpacing[0]#pixel spacing in the axial plane better be t
 spacing = origrd.GridFrameOffsetVector[1]-origrd.GridFrameOffsetVector[0]#this is the slice spacing
 ptvpts=[]
 oarpts=[]
+normpts = []
 #first let's get the bounds of the RD array that we want to optimize with.  No need to optimize everywhere
 maxorigdose = np.max(origdose)
 whererelevant = np.argwhere(origdose>0.25*maxorigdose)#im just lookin at doses within 25% of the max
@@ -82,6 +108,9 @@ for oar in oarnames:
     for o in rs.StructureSetROISequence:
         if o.ROIName==oar:
             oars.append(o.ROINumber)
+for n in rs.StructureSetROISequence:
+    if n.ROIName==normptv:
+        normnum = n.ROINumber
 
 for r in ptvs:
     for s in rs.ROIContourSequence:
@@ -130,8 +159,32 @@ for o in oars:
                             #coordinate axes are 0,1,2-> 2,1,0
                             oarpts.append([z,j,i])
 
+for s in rs.ROIContourSequence:
+    if s.ReferencedROINumber==normnum:
+        thiscontour = s.ContourSequence
+        for k in range(len(thiscontour)):
+            c=thiscontour[k].ContourData
+            z= c[2]#z isnt gonna change per sequence
+            z=np.round((z-origin[2])/spacing)
+            if z<imin or z>=imax:
+                continue
+            xs = np.multiply(np.add(c[::3],-origin[0]),1/pixelspacing)
+            ys = np.multiply(np.add(c[1::3],-origin[1]),1/pixelspacing)
+        
+            minx= max([np.int32(np.min(xs)), kmin])
+            maxx = min([np.int32(np.max(xs)), kmax])
+            miny= max([np.int32(np.min(ys)),jmin])
+            maxy=min([np.int32(np.max(ys)),jmax])
+
+            for i in range(minx,maxx):
+                for j in range(miny,maxy):
+                    if IsPointInPolygon(xs,ys,i,j):
+                        #coordinate axes are 0,1,2-> 2,1,0
+                        normpts.append([z,j,i])
+
 oarpts=np.array(oarpts, dtype=np.int32)
 ptvpts=np.array(ptvpts, dtype=np.int32)
+normpts = np.array(normpts, dtype=np.int32)
 imin=min([min(np.transpose(ptvpts)[0]), min(np.transpose(oarpts)[0])])
 jmin=min([min(np.transpose(ptvpts)[1]), min(np.transpose(oarpts)[1])])
 kmin=min([min(np.transpose(ptvpts)[2]), min(np.transpose(oarpts)[2])])
@@ -146,6 +199,10 @@ for p in ptvpts:
     p[0]+=-imin
     p[1]+=-jmin
     p[2]+=-kmin
+for p in normpts:
+    p[0]+=-imin
+    p[1]+=-jmin
+    p[2]+=-kmin
 
 goaldose = origdose[imin:imax,jmin:jmax,kmin:kmax]
 goalptvcloud=[]
@@ -157,11 +214,11 @@ for pt in oarpts:
 
 goalptvcloud = np.asarray(goalptvcloud)
 goaloarcloud = np.asarray(goaloarcloud)
-
 #get the mlmlc field doses
 #rds =[]
 preptvcloud=[]
 preoarcloud=[]
+normcloud = []
 count=0
 for f in listdir(exportloc):
     if isfile(join(exportloc, f)):
@@ -171,12 +228,16 @@ for f in listdir(exportloc):
             temppa = (tempd.pixel_array * scale)[imin:imax,jmin:jmax,kmin:kmax]
             tempptvcloud=[]
             tempoarcloud=[]
+            tempnormcloud=[]
             for pt in ptvpts:
                 tempptvcloud.append(temppa[pt[0],pt[1],pt[2]])
             for pt in oarpts:
                 tempoarcloud.append(temppa[pt[0],pt[1],pt[2]])
+            for pt in normpts:
+                tempnormcloud.append(temppa[pt[0],pt[1],pt[2]])
             preptvcloud.append(tempptvcloud)
             preoarcloud.append(tempoarcloud)
+            normcloud.append(tempnormcloud)
         if f[0:2]=="RP":
             rp = pydicom.dcmread(exportloc +"\\"+f)
         print("\r loaded file "+ str(count+1) + " of " + str(len(listdir(exportloc))))
@@ -184,6 +245,7 @@ for f in listdir(exportloc):
 #now do the optimization
 preptvcloud = np.asarray(preptvcloud)
 preoarcloud = np.asarray(preoarcloud)
+normcloud = np.asarray(normcloud)
 weights = np.ones(len(preptvcloud))
 notopt = True
 counter = 1
@@ -249,8 +311,22 @@ while notopt:
         print("Optimization completed due to minimal change in cost between iterations.")    
     if counter==100:
         notopt=False#stop after n iterations    
-        print("optimization completed due to meeting the iterations limit")    
+        print("optimization completed due to meeting the iterations limit")   
+
+
+#renormalize to whatever the original plan was so we get apples to apples
+prenorm = sumall(normcloud, weights)
+weights = weights* (rx*normrx/100)/np.percentile(prenorm,100-normvol)
+#calculate total time and MU for data acquisition
+
+
 tr.rewriteWeights(origfile, exportloc,weights, finalfolder + r"\H5M5W8_11_22.dcm")
+
+
+
 t = (time.time() - tempTime)
 np.savetxt(finalfolder+r"\HNMLCcostf.csv",iterchangearray,delimiter =',')
+
+
+
 print("Weight optimization completed in " + str(t)[:6]+" seconds")

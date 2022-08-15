@@ -18,7 +18,7 @@ weightSearchStep = 1E-1                # Threshold of weight convergence
 maxWeight = 3                       # Maximum allowed weight
 plantype = "ra"
 finalfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data"
-
+leavesfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\H5Leaves"
 if plantype == "ra":
     dlg = 0.1103 #the killeen 6x DLG is 0.1103. 
     dlg=dlg/2 #per leaf
@@ -66,7 +66,9 @@ if plantype == "ra":
         solverAvgArray.append(mySolver3)
     t = (time.time() - tempTime)
     print("*******LEAF SOLVE COMPLETED***********  T: "+ str(t)[0:4] +" s")
-    print("writing file...")
+    print("writing files...")
+    for n, b in enumerate(solverAvgArray):
+        tr.outputLeaves(leavesfolder + r"\\"+str(n).zfill(3), b,',')
     #now write the data back to the dicom file
     tr.convertRAMLMLCToComp(solverAvgArray,isoX, isoY, isoZ, xMin ,xMax, yMin, yMax, gantries, finalfolder + r"\HNPreWeightCompPlan.dcm")
     print("done")
