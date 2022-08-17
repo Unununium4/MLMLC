@@ -12,6 +12,7 @@ from os.path import isfile, join
 from copy import deepcopy
 import translator as tr
 import time
+import re
 
 #calculate time
 def timetodeliver(dcmplan,weights, leavesfolder, drate):#drate is in MU/min.  need to include leave position file to get the leaf speeds
@@ -29,8 +30,34 @@ def timetodeliver(dcmplan,weights, leavesfolder, drate):#drate is in MU/min.  ne
         gtimes.append(abs(g2-g1)/gspeed)
     lspeed = 25#assume leaf speed of 25mm per second projected at isocenter
 
-    print(len(gtimes))
-    print(len(mutimes))
+    onlyFiles = [f for f in listdir(leavesfolder) if isfile(join(leavesfolder, f))]  #file list
+    fName = leavesfolder + "\\" +onlyFiles[0]
+    leafFile = open(fName,"r")
+    leaves = leafFile.readlines()
+    leaves = leaves[1:] #first row is the header
+    lastLeafPos= len(re.split(r'\t+',leaves[0]))-1 #first row has the weight of the field as the last column.  no other rows have this
+    numFiles = len(onlyFiles)
+    numRows = len(leaves)
+    numLeaves = lastLeafPos - 1
+    leafPosArray=np.zeros((numFiles,numRows,numLeaves))
+    for i in range(numFiles):
+        fName = leavesfolder + "\\" + str(i).zfill(3)  #must read in files in their delivered order, not however listdir  orders them
+        leafFile = open(fName,"r")
+        leaves = leafFile.readlines()
+        leaves = leaves[1:]
+        #start iterating through all rows
+        for j in range(len(leaves)):
+            leafPosArray[i,j,:]=np.asarray(re.split(r'\t+',leaves[j])[1:lastLeafPos]).astype(np.float)
+        leafFile.close()
+
+    ltimes=np.zeros((numFiles,numRows,numLeaves))
+    for i in range(1,numFiles):
+        for j in range(numRows):
+            for k in range(numLeaves):
+                ltimes[i,j,k]=abs(leafPosArray[i,j,k]-leafPosArray[i-1,j,k])/lspeed
+
+    for i in range(numFiles):
+        ttd+=max([np.max(ltimes[i]),mutimes[i],gtimes[i]])
 
     return ttd
 
@@ -66,6 +93,7 @@ def IsPointInPolygon(contourxs,contourys, pointx, pointy):
 
 tempTime = time.time()
 
+leavesfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\H5M5Leaves"
 exportloc = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\H5M5P8_11_22"
 origfile = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\HNKRAs\5RADose.dcm"
 finalfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data"
@@ -322,7 +350,8 @@ weights = weights* (rx*normrx/100)/np.percentile(prenorm,100-normvol)
 
 tr.rewriteWeights(origfile, exportloc,weights, finalfolder + r"\H5M5W8_11_22.dcm")
 
-
+ttd=timetodeliver(rp,weights, leavesfolder, 600)
+print("the plan will take " + str(ttd)[:5] + "s to deliver")
 
 t = (time.time() - tempTime)
 np.savetxt(finalfolder+r"\HNMLCcostf.csv",iterchangearray,delimiter =',')

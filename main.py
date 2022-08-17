@@ -18,7 +18,7 @@ weightSearchStep = 1E-1                # Threshold of weight convergence
 maxWeight = 3                       # Maximum allowed weight
 plantype = "ra"
 finalfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data"
-leavesfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\H5Leaves"
+leavesfolder = r"K:\Physics Division\Personal folders\ANM\MLMLC\data\H5M5Leaves"
 if plantype == "ra":
     dlg = 0.1103 #the killeen 6x DLG is 0.1103. 
     dlg=dlg/2 #per leaf
